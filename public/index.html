@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hospedaje cerca de Hanyang</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1c2330; --muted: #667085; --line: #e4e2da;
+    --hyu: #0e4a84;
+    --hotel: #1f6fb2; --airbnb: #d6455d; --capsule: #6d4fc2;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171c; --panel: #1c2027; --ink: #eceff4; --muted: #9aa3b2; --line: #2e343f; --hyu: #5da2e6;
+            --hotel: #5da2e6; --airbnb: #ff7a8f; --capsule: #a58df0; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+  .app { display: grid; grid-template-columns: 400px 1fr; height: 100dvh; }
+  .side { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .side-top { padding: 16px 16px 8px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+  .sub { margin: 2px 0 12px; color: var(--muted); font-size: 13px; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tab { border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 8px 10px; border-radius: 10px; cursor: pointer; text-align: left; font: inherit; }
+  .tab small { display: block; color: var(--muted); font-size: 12px; }
+  .tab[aria-selected="true"] { border-color: var(--hyu); box-shadow: inset 0 0 0 1px var(--hyu); }
+  .stay-box { margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr 64px; gap: 8px; }
+  label { font-size: 12px; color: var(--muted); display: grid; gap: 2px; }
+  input, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; min-width: 0; }
+  .note { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+  #banner:not(:empty) { margin: 10px 16px 0; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; background: #fff4d6; color: #5c4400; }
+  #banner.err { background: #fde4e4; color: #7a1f1f; }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px 4px; }
+  .chip { border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; padding: 5px 11px; cursor: pointer; font: inherit; font-size: 13.5px; display: inline-flex; gap: 6px; align-items: center; }
+  .chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  .row { display: flex; align-items: center; justify-content: space-between; padding: 6px 16px; color: var(--muted); font-size: 13px; }
+  .row select { padding: 3px 6px; font-size: 13px; }
+  ul#list { list-style: none; margin: 0; padding: 0 10px 16px; overflow: auto; flex: 1; }
+  .card { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 10px 8px; border-radius: 10px; cursor: pointer; border-bottom: 1px solid var(--line); }
+  .card:hover, .card:focus-visible { background: var(--bg); outline: none; }
+  .card .name { font-weight: 600; }
+  .card .meta { color: var(--muted); font-size: 12.5px; }
+  .card .price { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .card .price small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+  .tag { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; color: #fff; margin-right: 6px; }
+  .tag.hotel { background: var(--hotel); } .tag.airbnb { background: var(--airbnb); } .tag.capsule { background: var(--capsule); }
+  .empty { padding: 24px 16px; color: var(--muted); text-align: center; }
+  #map { height: 100%; min-height: 0; }
+  /* pines en el mapa */
+  .pill { transform: translate(-50%, -100%); white-space: nowrap; font-weight: 700; font-size: 12.5px; color: #fff; padding: 3px 8px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); width: max-content; }
+  .pill.hotel { background: var(--hotel); } .pill.airbnb { background: var(--airbnb); } .pill.capsule { background: var(--capsule); }
+  .hyu { transform: translate(-50%, -100%); background: var(--hyu); color: #fff; font-weight: 800; font-size: 12px; padding: 5px 10px; border-radius: 8px; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.4); width: max-content; }
+  .hyu::after { content: ""; position: absolute; left: 50%; bottom: -8px; margin-left: -6px; border: 6px solid transparent; border-top-color: var(--hyu); }
+  .leaflet-div-icon { background: none; border: 0; }
+  /* popup */
+  .pop { width: 230px; font: 14px/1.4 system-ui, sans-serif; color: #1c2330; }
+  .pop img { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; margin-bottom: 6px; }
+  .pop h3 { margin: 4px 0 2px; font-size: 15px; }
+  .pop .big { font-size: 18px; font-weight: 800; }
+  .pop .muted { color: #667085; font-size: 12.5px; }
+  .pop .btns { display: flex; gap: 6px; margin-top: 8px; }
+  .pop a.btn { flex: 1; text-align: center; padding: 7px 6px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; background: #0e4a84; color: #fff; }
+  .pop a.btn.alt { background: #eef1f5; color: #1c2330; }
+  .pop a.btn.off { background: #eef1f5; color: #98a2b3; pointer-events: none; }
+  @media (max-width: 800px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 46dvh 1fr; }
+    #map { order: -1; }
+    .side { border-right: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="side-top">
+      <h1>Hospedaje cerca de Hanyang</h1>
+      <p class="sub">Seúl · invierno 2026–27 · 222 Wangsimni-ro, Seongdong-gu</p>
+
+      <div class="tabs" role="tablist" id="tabs"></div>
+
+      <div class="stay-box">
+        <label>Entrada <input type="date" id="ci"></label>
+        <label>Salida <input type="date" id="co"></label>
+        <label>Adultos <input type="number" id="ad" min="1" max="6" value="2"></label>
+      </div>
+      <p class="note" id="note"></p>
+    </div>
+
+    <div id="banner"></div>
+    <div class="filters" id="filters"></div>
+    <div class="row">
+      <span id="count"></span>
+      <label style="display:flex;gap:6px;align-items:center;">Ordenar
+        <select id="sort">
+          <option value="price">Precio</option>
+          <option value="dist">Cercanía a Hanyang</option>
+          <option value="rating">Calificación</option>
+        </select>
+      </label>
+    </div>
+    <ul id="list" aria-live="polite"></ul>
+  </aside>
+  <main id="map" aria-label="Mapa de Seúl"></main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ---------- configuración de las dos estancias ---------- */
+const STAYS = {
+  1: { title: 'Estancia 1', hint: 'Llegada al hospedaje', checkin: '2026-12-24', checkout: '2026-12-25',
+       note: 'Aterrizan el 24-dic a las 06:10 y el check-in de la residencia es hasta el 25-dic (15:00–20:00). La mayoría de los alojamientos hace check-in ~14:00–15:00: pregunten por guardar maletas o early check-in.' },
+  2: { title: 'Estancia 2', hint: 'Salida al aeropuerto', checkin: '2027-02-04', checkout: '2027-02-06',
+       note: 'Check-out de la residencia (Sesión A&B): 4-feb hasta las 12:00. Vuelo AM 0091 el 6-feb a las 11:40 desde Incheon (T2): salgan del hospedaje ~08:00.' },
+};
+const CATS = { hotel: 'Hotel tradicional', airbnb: 'Airbnb', capsule: 'Cápsula' };
+const HANYANG = [37.5575, 127.0455];
+
+/* ---------- estado ---------- */
+let current = 1, filter = 'all', data = null, reqId = 0;
+const markers = new Map();
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+function el(tag, props = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') n.className = v; else if (k === 'text') n.textContent = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v);
+  }
+  kids.flat().forEach(c => c != null && n.append(c));
+  return n;
+}
+const safeUrl = u => { try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : null; } catch { return null; } };
+const money = v => v == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: data?.currency || 'USD', maximumFractionDigits: 0 }).format(v);
+const walkMin = km => Math.max(1, Math.round(km * 12));
+
+/* ---------- mapa ---------- */
+const map = L.map('map', { zoomControl: true }).setView(HANYANG, 14);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+}).addTo(map);
+L.marker(HANYANG, {
+  icon: L.divIcon({ className: '', html: '<div class="hyu">Universidad Hanyang</div>', iconSize: [0, 0] }),
+  zIndexOffset: 1000, title: 'Universidad Hanyang',
+}).addTo(map);
+const layer = L.layerGroup().addTo(map);
+
+/* ---------- UI de estancias ---------- */
+function buildTabs() {
+  const box = $('tabs'); box.replaceChildren();
+  for (const [id, s] of Object.entries(STAYS)) {
+    box.append(el('button', {
+      class: 'tab', role: 'tab', 'aria-selected': String(Number(id) === current),
+      onclick: () => { current = Number(id); buildTabs(); syncInputs(); load(true); },
+    }, s.title, el('small', { text: `${s.hint} · ${s.checkin.slice(5)} → ${s.checkout.slice(5)}` })));
+  }
+}
+function syncInputs() {
+  const s = STAYS[current];
+  $('ci').value = s.checkin; $('co').value = s.checkout; $('note').textContent = s.note;
+}
+['ci', 'co', 'ad'].forEach(id => $(id).addEventListener('change', () => {
+  STAYS[current].checkin = $('ci').value; STAYS[current].checkout = $('co').value;
+  buildTabs(); load(true);
+}));
+
+/* ---------- carga de datos (precios en vivo vía /api/stays) ---------- */
+async function load(fit) {
+  const id = ++reqId, s = STAYS[current];
+  const banner = $('banner'); banner.className = ''; banner.textContent = '';
+  $('list').replaceChildren(el('li', { class: 'empty', text: 'Buscando precios actualizados…' }));
+  $('count').textContent = '';
+  try {
+    const q = new URLSearchParams({ checkin: s.checkin, checkout: s.checkout, adults: $('ad').value || 2 });
+    const r = await fetch('/api/stays?' + q);
+    const j = await r.json();
+    if (id !== reqId) return;                       // llegó una respuesta vieja
+    if (!r.ok) throw new Error(j.error || 'Error');
+    data = j;
+    if (j.demo) banner.textContent = 'Modo DEMO: nombres y precios de ejemplo, NO son reales. Agrega tu SERPAPI_KEY en .env para ver precios reales.';
+    else if (j.errors?.length) { banner.className = 'err'; banner.textContent = 'Algunas búsquedas fallaron: ' + j.errors.join(' · '); }
+    render(fit);
+  } catch (e) {
+    if (id !== reqId) return;
+    data = null; layer.clearLayers(); markers.clear();
+    banner.className = 'err'; banner.textContent = 'No se pudieron cargar los precios. ' + e.message;
+    $('list').replaceChildren(el('li', { class: 'empty', text: 'Sin resultados.' }));
+  }
+}
+
+/* ---------- render ---------- */
+function visibleItems() {
+  if (!data) return [];
+  const f = it => filter === 'all' || it.category === filter;
+  const key = { price: it => it.nightly ?? Infinity, dist: it => it.distanceKm, rating: it => -(it.rating ?? 0) }[$('sort').value];
+  return data.items.filter(f).sort((a, b) => key(a) - key(b));
+}
+
+function buildFilters() {
+  const box = $('filters'); box.replaceChildren();
+  const counts = { all: data?.items.length ?? 0 };
+  for (const c in CATS) counts[c] = data?.items.filter(i => i.category === c).length ?? 0;
+  const mk = (k, label, color) => box.append(el('button', {
+    class: 'chip', 'aria-pressed': String(filter === k),
+    onclick: () => { filter = k; buildFilters(); render(false); },
+  }, color ? el('i', { style: `background:var(--${color})` }) : null, `${label} (${counts[k]})`));
+  mk('all', 'Todos');
+  for (const c in CATS) mk(c, CATS[c], c);
+}
+
+function popupFor(it) {
+  const img = safeUrl(it.image);
+  const link = safeUrl(it.link), g = safeUrl(it.googleUrl);
+  const maps = `https://www.google.com/maps/search/?api=1&query=${it.lat},${it.lng}`;
+  const nights = data.nights;
+  return el('div', { class: 'pop' },
+    img ? el('img', { src: img, alt: '', referrerpolicy: 'no-referrer' }) : null,
+    el('span', { class: `tag ${it.category}`, text: CATS[it.category] }),
+    el('h3', { text: it.name }),
+    el('div', { class: 'big', text: `${money(it.nightly)} / noche` }),
+    el('div', { class: 'muted', text: `Total ${nights} noche${nights > 1 ? 's' : ''}: ${money(it.total)}` }),
+    el('div', { class: 'muted', text: [
+      it.rating ? `★ ${it.rating}${it.reviews ? ` (${it.reviews})` : ''}` : null,
+      `${it.distanceKm} km de Hanyang (~${walkMin(it.distanceKm)} min a pie)`,
+    ].filter(Boolean).join(' · ') }),
+    it.sources?.length ? el('div', { class: 'muted', text: 'Ofertas en: ' + it.sources.slice(0, 4).join(', ') }) : null,
+    el('div', { class: 'btns' },
+      el('a', { class: 'btn' + (link || g ? '' : ' off'), href: link || g || '#', target: '_blank', rel: 'noopener noreferrer', text: 'Reservar' }),
+      el('a', { class: 'btn alt', href: maps, target: '_blank', rel: 'noopener noreferrer', text: 'Mapa' }),
+    ),
+    el('div', { class: 'muted', style: 'margin-top:6px', text: 'Precio de referencia: confirma fechas e impuestos en la página de reserva.' }),
+  );
+}
+
+function render(fit) {
+  buildFilters();
+  const items = visibleItems();
+  layer.clearLayers(); markers.clear();
+  const list = $('list'); list.replaceChildren();
+  $('count').textContent = `${items.length} opciones · ${data.nights} noche${data.nights > 1 ? 's' : ''}`;
+  if (!items.length) list.append(el('li', { class: 'empty', text: 'No hay opciones con este filtro.' }));
+
+  for (const it of items) {
+    const m = L.marker([it.lat, it.lng], {
+      icon: L.divIcon({ className: '', html: `<div class="pill ${it.category}"></div>`, iconSize: [0, 0] }),
+      title: it.name,
+    });
+    m.on('add', () => { const p = m.getElement().querySelector('.pill'); if (p) p.textContent = money(it.nightly); });
+    m.bindPopup(() => popupFor(it), { maxWidth: 260 });
+    m.addTo(layer); markers.set(it.id, m);
+
+    list.append(el('li', {
+      class: 'card', tabindex: '0',
+      onclick: () => focusItem(it), onkeydown: e => { if (e.key === 'Enter') focusItem(it); },
+    },
+      el('div', {},
+        el('div', { class: 'name', text: it.name }),
+        el('div', { class: 'meta' }, el('span', { class: `tag ${it.category}`, text: CATS[it.category] }),
+          `${it.distanceKm} km` + (it.rating ? ` · ★ ${it.rating}` : '')),
+      ),
+      el('div', { class: 'price' }, money(it.nightly), el('small', { text: `total ${money(it.total)}` })),
+    ));
+  }
+  if (fit && items.length) {
+    map.fitBounds(L.latLngBounds([HANYANG, ...items.map(i => [i.lat, i.lng])]).pad(0.15), { maxZoom: 15 });
+  }
+}
+
+function focusItem(it) {
+  const m = markers.get(it.id); if (!m) return;
+  map.flyTo([it.lat, it.lng], Math.max(map.getZoom(), 16), { duration: 0.6 });
+  m.openPopup();
+}
+
+$('sort').addEventListener('change', () => data && render(false));
+buildTabs(); syncInputs(); buildFilters(); load(true);
+</script>
+</body>
+</html>
