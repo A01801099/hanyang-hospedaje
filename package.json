@@ -1,0 +1,12 @@
+{
+  "name": "hanyang-stays",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mapa de hospedaje cerca de la Universidad Hanyang (Seúl) con precios en vivo",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
